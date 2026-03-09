@@ -13,9 +13,24 @@ class DockerManager:
     """Manages Docker container operations."""
 
     def __init__(self) -> None:
-        """Initialize Docker client."""
+        """Initialize Docker client with socket detection."""
+        # Try Colima socket first (macOS)
+        colima_socket = Path.home() / ".colima" / "default" / "docker.sock"
+        
+        if colima_socket.exists():
+            socket_url = f"unix://{colima_socket}"
+            try:
+                self.client = docker.DockerClient(base_url=socket_url)
+                # Test connection
+                self.client.ping()
+                return
+            except DockerException:
+                pass  # Fall through to standard socket
+        
+        # Try standard Docker socket
         try:
             self.client = docker.from_env()
+            self.client.ping()
         except DockerException as e:
             print(f"Error: Docker is not available: {e}", file=sys.stderr)
             print("Ensure Docker daemon is running", file=sys.stderr)
