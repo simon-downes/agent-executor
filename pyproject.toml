@@ -1,12 +1,23 @@
 [project]
-name = "ax"
+name = "agent-executor"
 version = "0.1.0"
 description = "Unified execution hub for AI workflow tools with Docker sandbox support"
 requires-python = ">=3.11"
 dependencies = [
     "click>=8.3.1",
     "docker>=7.1.0",
+    "rich>=13.0.0",
 ]
 
 [project.scripts]
 ax = "ax.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ax"]
+
+[tool.uv]
+package = true
