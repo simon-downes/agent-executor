@@ -6,15 +6,19 @@ Unified execution hub for AI agent tools, running them in isolated Docker sandbo
 
 `ax` provides a consistent interface for running AI agent tools (like kiro and toad) with automatic project detection, directory mounting, and session management. By default, tools run in isolated Docker containers with pre-configured development tooling, ensuring consistent environments across different projects and machines.
 
-## Quick Start
+## Installation
 
 ```bash
-# Install dependencies
-uv sync
+# Install via uv
+uv tool install git+https://github.com/simon-downes/agent-executor
 
 # Build the sandbox image
 ax build
+```
 
+## Quick Start
+
+```bash
 # Run default tool (toad) in sandbox
 ax
 
@@ -141,12 +145,16 @@ Local mode:
 
 - **Python 3.11+**
 - **Docker** (for sandbox execution)
-- **uv** (for dependency management)
+- **uv** (for installation and dependency management)
 - **Project under ~/dev** (required for project detection)
 
 ## Development
 
 ```bash
+# Clone the repository
+git clone https://github.com/simon-downes/agent-executor.git
+cd agent-executor
+
 # Install in development mode with linting tools
 uv sync --extra dev
 
