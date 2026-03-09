@@ -64,7 +64,7 @@ class DockerManager:
 
     def build_image(self, image_name: str, context_path: Path = Path(".")) -> None:
         """Build Docker image with host user baked in."""
-        from ax.constants import HOST_GID, HOST_UID, HOST_USERNAME
+        from ax.constants import HOST_UID, HOST_USERNAME
 
         result = subprocess.run(
             [
@@ -74,8 +74,6 @@ class DockerManager:
                 f"USERNAME={HOST_USERNAME}",
                 "--build-arg",
                 f"USER_UID={HOST_UID}",
-                "--build-arg",
-                f"USER_GID={HOST_GID}",
                 "-t",
                 image_name,
                 str(context_path),

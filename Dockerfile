@@ -123,9 +123,9 @@ RUN ARCH=$(uname -m) && \
     chmod +x /usr/local/bin/scalr && \
     rm -rf scalr.zip /tmp/scalr
 
-# Create user with matching UID/GID from host
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
+# Create user with matching UID from host (group uses username)
+RUN groupadd $USERNAME \
+    && useradd --uid $USER_UID --gid $USERNAME -m -s /bin/bash $USERNAME \
     && mkdir -p /home/$USERNAME/dev \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME
 

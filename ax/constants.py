@@ -10,4 +10,3 @@ CONTAINER_PREFIX = "ax-"
 _user_info = pwd.getpwuid(os.getuid())
 HOST_USERNAME = _user_info.pw_name
 HOST_UID = _user_info.pw_uid
-HOST_GID = _user_info.pw_gid
