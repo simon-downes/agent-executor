@@ -172,7 +172,6 @@ def shell() -> None:
             tty=True,
             detach=False,
             remove=True,
-            auto_remove=True,
         )
     except KeyboardInterrupt:
         pass

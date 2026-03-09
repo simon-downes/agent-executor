@@ -15,7 +15,7 @@ def print_success(message: str) -> None:
 
 def print_error(message: str) -> None:
     """Print error message with red keyword."""
-    console.print(f"[red]Error:[/red] {message}", err=True)
+    console.print(f"[red]Error:[/red] {message}", stderr=True)
 
 
 def print_warning(message: str) -> None:
