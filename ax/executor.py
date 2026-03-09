@@ -69,6 +69,7 @@ def execute_sandbox(tool: Tool, args: list[str], image: str = "ax-sandbox") -> i
         "docker", "run",
         "--rm",
         "--name", container_name,
+        "-e", f"TERM={subprocess.os.environ.get('TERM', 'xterm-256color')}",
         "-v", f"{mount_config.project_dir}:/workspace",
         "-v", f"{mount_config.cli_tools_dir}:{mount_config.cli_tools_dir}",
         "-v", f"{mount_config.plans_dir}:{mount_config.plans_dir}",
