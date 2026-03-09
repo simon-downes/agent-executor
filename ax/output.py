@@ -1,11 +1,13 @@
 """Rich terminal output utilities."""
 
+import sys
 from pathlib import Path
 
 from rich.console import Console
 from rich.panel import Panel
 
 console = Console()
+console_err = Console(stderr=True)
 
 
 def print_success(message: str) -> None:
@@ -15,7 +17,7 @@ def print_success(message: str) -> None:
 
 def print_error(message: str) -> None:
     """Print error message with red keyword."""
-    console.print(f"[red]Error:[/red] {message}", stderr=True)
+    console_err.print(f"[red]Error:[/red] {message}")
 
 
 def print_warning(message: str) -> None:

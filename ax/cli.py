@@ -147,34 +147,47 @@ def stop(session: str) -> None:
 @click.command()
 def shell() -> None:
     """Open a shell in the sandbox container."""
-    from ax.docker_manager import DockerManager
+    import subprocess
     from ax.paths import get_mount_config
-
-    mount_config = get_mount_config([])
-    docker_mgr = DockerManager()
-
-    container_name = f"ax-shell-{mount_config.project_dir.name}"
-
-    volumes = {
-        str(mount_config.project_dir): {"bind": "/workspace", "mode": "rw"},
-        str(mount_config.cli_tools_dir): {"bind": str(mount_config.cli_tools_dir), "mode": "rw"},
-        str(mount_config.plans_dir): {"bind": str(mount_config.plans_dir), "mode": "rw"},
-    }
+    from ax.output import highlight
 
     try:
-        docker_mgr.client.containers.run(
-            "ax-sandbox",
-            "bash",
-            name=container_name,
-            volumes=volumes,
-            working_dir="/workspace",
-            stdin_open=True,
-            tty=True,
-            detach=False,
-            remove=True,
+        mount_config = get_mount_config([])
+        container_name = f"ax-shell-{mount_config.project_dir.name}"
+
+        # Check if container already exists (exact name match)
+        check_result = subprocess.run(
+            ["docker", "ps", "-a", "-q", "-f", f"name=^{container_name}$"],
+            capture_output=True,
+            text=True,
+            check=False
         )
+        if check_result.stdout.strip():
+            print_error(f"Shell container [bright_blue]{container_name}[/bright_blue] already exists")
+            print(f"Stop it with: ax stop {container_name}", file=sys.stderr)
+            sys.exit(1)
+
+        # Build docker run command
+        cmd = [
+            "docker", "run",
+            "--rm",
+            "-it",
+            "--name", container_name,
+            "-v", f"{mount_config.project_dir}:/workspace",
+            "-v", f"{mount_config.cli_tools_dir}:{mount_config.cli_tools_dir}",
+            "-v", f"{mount_config.plans_dir}:{mount_config.plans_dir}",
+            "-w", "/workspace",
+            "ax-sandbox",
+            "bash"
+        ]
+
+        result = subprocess.run(cmd, check=False)
+        sys.exit(result.returncode)
+    except FileNotFoundError:
+        print_error("docker command not found")
+        sys.exit(1)
     except KeyboardInterrupt:
-        pass
+        sys.exit(130)
     except Exception as e:
         print_error(str(e))
         sys.exit(1)
