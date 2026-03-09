@@ -181,6 +181,8 @@ def stop(session: str) -> None:
 @click.command()
 def shell() -> None:
     """Open a shell in the sandbox container."""
+    from pathlib import Path
+
     from docker.errors import DockerException
 
     from ax.constants import HOST_USERNAME
@@ -217,11 +219,19 @@ def shell() -> None:
             f"{mount_config.cli_tools_dir}:{container_home}/cli-tools",
             "-v",
             f"{mount_config.plans_dir}:{container_home}/plans",
-            "-w",
-            container_project_path,
-            IMAGE_NAME,
-            "bash",
         ]
+
+        # Add git config files
+        for git_file in mount_config.git_config_files:
+            container_git_path = str(git_file).replace(str(Path.home()), container_home)
+            cmd.extend(["-v", f"{git_file}:{container_git_path}:ro"])
+
+        # Add SSH keys
+        for ssh_file in mount_config.ssh_key_files:
+            container_ssh_path = str(ssh_file).replace(str(Path.home()), container_home)
+            cmd.extend(["-v", f"{ssh_file}:{container_ssh_path}:ro"])
+
+        cmd.extend(["-w", container_project_path, IMAGE_NAME, "bash"])
 
         exit_code = docker_mgr.run_container(cmd)
         sys.exit(exit_code)

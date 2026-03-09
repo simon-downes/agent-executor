@@ -108,6 +108,16 @@ def build_docker_run_cmd(
         container_config_path = str(config_dir).replace(str(Path.home()), container_home)
         cmd.extend(["-v", f"{config_dir}:{container_config_path}"])
 
+    # Add git config files
+    for git_file in mount_config.git_config_files:
+        container_git_path = str(git_file).replace(str(Path.home()), container_home)
+        cmd.extend(["-v", f"{git_file}:{container_git_path}:ro"])
+
+    # Add SSH keys
+    for ssh_file in mount_config.ssh_key_files:
+        container_ssh_path = str(ssh_file).replace(str(Path.home()), container_home)
+        cmd.extend(["-v", f"{ssh_file}:{container_ssh_path}:ro"])
+
     # Add image and command
     cmd.append(image)
     cmd.append(tool.command)

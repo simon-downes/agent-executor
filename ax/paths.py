@@ -12,6 +12,8 @@ class MountConfig:
     cli_tools_dir: Path
     plans_dir: Path
     tool_config_dirs: list[Path]
+    git_config_files: list[Path]
+    ssh_key_files: list[Path]
 
 
 class PathResolutionError(Exception):
@@ -77,9 +79,28 @@ def get_mount_config(tool_config_dirs: list[str]) -> MountConfig:
 
     tool_configs = [Path(d).expanduser() for d in tool_config_dirs]
 
+    # Git config files (only include if they exist)
+    git_config_files = []
+    if (home / ".gitconfig").exists():
+        git_config_files.append(home / ".gitconfig")
+    # Include .gitconfig.* files (e.g., .gitconfig.work, .gitconfig.personal)
+    git_config_files.extend(home.glob(".gitconfig.*"))
+    if (home / ".gitignore").exists():
+        git_config_files.append(home / ".gitignore")
+
+    # SSH key files (only include if they exist)
+    ssh_key_files = []
+    ssh_dir = home / ".ssh"
+    if (ssh_dir / "id_ed25519").exists():
+        ssh_key_files.append(ssh_dir / "id_ed25519")
+    if (ssh_dir / "id_ed25519.pub").exists():
+        ssh_key_files.append(ssh_dir / "id_ed25519.pub")
+
     return MountConfig(
         project_dir=project_dir,
         cli_tools_dir=cli_tools_dir,
         plans_dir=plans_dir,
         tool_config_dirs=tool_configs,
+        git_config_files=git_config_files,
+        ssh_key_files=ssh_key_files,
     )
