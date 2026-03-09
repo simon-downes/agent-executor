@@ -4,6 +4,7 @@ import sys
 
 import click
 
+from ax.executor import execute_local
 from ax.tools import DEFAULT_TOOL, TOOLS
 
 
@@ -40,15 +41,24 @@ def create_tool_command(tool_name: str) -> click.Command:
 
     @click.command(
         name=tool_name,
-        context_settings={"ignore_unknown_options": True, "allow_extra_args": True},
+        context_settings={
+            "ignore_unknown_options": True,
+            "allow_extra_args": True,
+        },
+        add_help_option=False,
     )
     @click.option("--local", is_flag=True, help="Execute tool locally instead of in sandbox")
     @click.pass_context
     def tool_cmd(ctx: click.Context, local: bool) -> None:
         """Execute the tool."""
+        tool = TOOLS[tool_name]
         args = ctx.args
-        mode = "locally" if local else "in sandbox"
-        click.echo(f"Would execute {tool_name} {mode} with args: {args}")
+
+        if local:
+            exit_code = execute_local(tool, args)
+            sys.exit(exit_code)
+        else:
+            click.echo(f"Would execute {tool_name} in sandbox with args: {args}")
 
     return tool_cmd
 
