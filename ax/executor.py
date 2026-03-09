@@ -44,6 +44,10 @@ def execute_sandbox(tool: Tool, args: list[str], image: str = "ax-sandbox") -> i
     Returns:
         Exit code from container
     """
+    import subprocess
+    
+    from ax.output import print_error
+    
     mount_config = get_mount_config(tool.config_dirs)
     docker_mgr = DockerManager()
 
@@ -51,6 +55,46 @@ def execute_sandbox(tool: Tool, args: list[str], image: str = "ax-sandbox") -> i
         tool.name, mount_config.project_dir
     )
 
-    cmd = [tool.command] + (tool.default_args or []) + args
+    # Check if container already exists
+    if docker_mgr.check_container_exists(container_name):
+        print_error(f"Container [bright_blue]{container_name}[/bright_blue] already exists")
+        print(
+            f"Another session may be running. Stop it with: ax stop {container_name}",
+            file=sys.stderr,
+        )
+        return 1
 
-    return docker_mgr.run_in_container(image, cmd, container_name, mount_config)
+    # Build docker run command
+    cmd = [
+        "docker", "run",
+        "--rm",
+        "--name", container_name,
+        "-v", f"{mount_config.project_dir}:/workspace",
+        "-v", f"{mount_config.cli_tools_dir}:{mount_config.cli_tools_dir}",
+        "-v", f"{mount_config.plans_dir}:{mount_config.plans_dir}",
+        "-w", "/workspace",
+    ]
+    
+    # Add -it only if stdin is a TTY
+    if sys.stdin.isatty():
+        cmd.insert(3, "-it")
+    
+    # Add tool config directories
+    for config_dir in mount_config.tool_config_dirs:
+        cmd.extend(["-v", f"{config_dir}:{config_dir}"])
+    
+    # Add image and command
+    cmd.append(image)
+    cmd.append(tool.command)
+    if tool.default_args:
+        cmd.extend(tool.default_args)
+    cmd.extend(args)
+
+    try:
+        result = subprocess.run(cmd, check=False)
+        return result.returncode
+    except FileNotFoundError:
+        print_error("docker command not found")
+        return 1
+    except KeyboardInterrupt:
+        return 130
