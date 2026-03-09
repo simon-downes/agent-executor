@@ -5,6 +5,8 @@ import sys
 import click
 
 from ax.executor import execute_local, execute_sandbox
+from ax.output import display_header, print_error
+from ax.paths import get_mount_config
 from ax.tools import DEFAULT_TOOL, TOOLS
 
 
@@ -54,10 +56,27 @@ def create_tool_command(tool_name: str) -> click.Command:
         tool = TOOLS[tool_name]
         args = ctx.args
 
-        if local:
-            exit_code = execute_local(tool, args)
-        else:
-            exit_code = execute_sandbox(tool, args)
+        # Get mount config and display header
+        try:
+            mount_config = get_mount_config(tool.config_dirs)
+            
+            if local:
+                display_header(tool_name, is_local=True, project_dir=mount_config.project_dir)
+                exit_code = execute_local(tool, args)
+            else:
+                from ax.docker_manager import DockerManager
+                docker_mgr = DockerManager()
+                container_name = docker_mgr.generate_container_name(tool_name, mount_config.project_dir)
+                display_header(
+                    tool_name,
+                    is_local=False,
+                    project_dir=mount_config.project_dir,
+                    container_name=container_name,
+                )
+                exit_code = execute_sandbox(tool, args)
+        except Exception as e:
+            print_error(str(e))
+            sys.exit(1)
 
         sys.exit(exit_code)
 
@@ -83,8 +102,9 @@ def main(ctx: click.Context) -> None:
 def build() -> None:
     """Build the sandbox Docker image."""
     import subprocess
+    from ax.output import print_info
 
-    click.echo("Building ax-sandbox image...")
+    print_info("Building ax-sandbox image...")
     try:
         result = subprocess.run(
             ["docker", "build", "-t", "ax-sandbox", "."],
@@ -92,7 +112,7 @@ def build() -> None:
         )
         sys.exit(result.returncode)
     except FileNotFoundError:
-        click.echo("Error: docker command not found", err=True)
+        print_error("docker command not found")
         sys.exit(1)
     except KeyboardInterrupt:
         sys.exit(130)
@@ -106,7 +126,7 @@ def list_sessions() -> None:
     try:
         subprocess.run(["docker", "ps", "--filter", "name=ax-*"], check=False)
     except FileNotFoundError:
-        click.echo("Error: docker command not found", err=True)
+        print_error("docker command not found")
         sys.exit(1)
 
 
@@ -120,7 +140,7 @@ def stop(session: str) -> None:
         result = subprocess.run(["docker", "stop", session], check=False)
         sys.exit(result.returncode)
     except FileNotFoundError:
-        click.echo("Error: docker command not found", err=True)
+        print_error("docker command not found")
         sys.exit(1)
 
 
@@ -157,7 +177,7 @@ def shell() -> None:
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        click.echo(f"Error: {e}", err=True)
+        print_error(str(e))
         sys.exit(1)
 
 

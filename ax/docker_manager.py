@@ -6,6 +6,7 @@ from pathlib import Path
 import docker
 from docker.errors import DockerException, NotFound
 
+from ax.output import highlight, print_error
 from ax.paths import MountConfig
 
 
@@ -32,7 +33,7 @@ class DockerManager:
             self.client = docker.from_env()
             self.client.ping()
         except DockerException as e:
-            print(f"Error: Docker is not available: {e}", file=sys.stderr)
+            print_error(f"Docker is not available: {e}")
             print("Ensure Docker daemon is running", file=sys.stderr)
             sys.exit(1)
 
@@ -69,10 +70,7 @@ class DockerManager:
             Exit code from container
         """
         if self.check_container_exists(container_name):
-            print(
-                f"Error: Container '{container_name}' already exists",
-                file=sys.stderr,
-            )
+            print_error(f"Container {highlight(container_name)} already exists")
             print(
                 f"Another session may be running. Stop it with: ax stop {container_name}",
                 file=sys.stderr,
@@ -105,5 +103,5 @@ class DockerManager:
         except KeyboardInterrupt:
             return 130
         except DockerException as e:
-            print(f"Error running container: {e}", file=sys.stderr)
+            print_error(f"Running container: {e}")
             return 1
