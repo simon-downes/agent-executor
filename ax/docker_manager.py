@@ -1,7 +1,6 @@
 """Docker container operations."""
 
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,12 +8,12 @@ import docker
 from docker.errors import DockerException, NotFound
 
 from ax.constants import CONTAINER_PREFIX
-from ax.output import print_error
 
 
 @dataclass
 class ContainerInfo:
     """Essential container information."""
+
     name: str
     status: str
     image: str
@@ -26,13 +25,13 @@ class DockerManager:
 
     def __init__(self) -> None:
         """Initialize Docker client with socket detection.
-        
+
         Raises:
             DockerException: If Docker is not available or connection fails
         """
         # Try Colima socket first (macOS)
         colima_socket = Path.home() / ".colima" / "default" / "docker.sock"
-        
+
         if colima_socket.exists():
             socket_url = f"unix://{colima_socket}"
             try:
@@ -42,7 +41,7 @@ class DockerManager:
                 return
             except DockerException:
                 pass  # Fall through to standard socket
-        
+
         # Try standard Docker socket
         try:
             self.client = docker.from_env()
@@ -66,24 +65,20 @@ class DockerManager:
     def build_image(self, image_name: str, context_path: Path = Path(".")) -> None:
         """Build Docker image via subprocess, streaming output."""
         result = subprocess.run(
-            ["docker", "build", "-t", image_name, str(context_path)],
-            check=False
+            ["docker", "build", "-t", image_name, str(context_path)], check=False
         )
         if result.returncode != 0:
             raise DockerException(f"Build failed with exit code {result.returncode}")
 
     def list_containers(self, name_prefix: str) -> list[ContainerInfo]:
         """List containers matching name prefix."""
-        containers = self.client.containers.list(
-            all=True,
-            filters={"name": name_prefix}
-        )
+        containers = self.client.containers.list(all=True, filters={"name": name_prefix})
         return [
             ContainerInfo(
                 name=c.name,
                 status=c.status,
                 image=c.image.tags[0] if c.image.tags else c.image.short_id,
-                created=c.attrs['Created']
+                created=c.attrs["Created"],
             )
             for c in containers
         ]

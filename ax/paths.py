@@ -1,6 +1,5 @@
 """Path resolution and mount logic."""
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,17 +40,15 @@ def resolve_project_mount(cwd: Path, dev_root: Path) -> Path:
     """
     try:
         relative = cwd.relative_to(dev_root)
-    except ValueError:
+    except ValueError as e:
         raise PathResolutionError(
-            f"Current directory must be under {dev_root}\n"
-            f"Current directory: {cwd}"
-        )
+            f"Current directory must be under {dev_root}\n" f"Current directory: {cwd}"
+        ) from e
 
     parts = relative.parts
     if not parts:
         raise PathResolutionError(
-            f"Cannot run from {dev_root} directly\n"
-            "Change to a project directory under ~/dev"
+            f"Cannot run from {dev_root} directly\n" "Change to a project directory under ~/dev"
         )
 
     return dev_root / parts[0]

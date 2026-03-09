@@ -60,22 +60,25 @@ def create_tool_command(tool_name: str) -> click.Command:
         # Get mount config and display header
         try:
             mount_config = get_mount_config(tool.config_dirs)
-            
+
             if local:
                 display_header(tool_name, is_local=True, project_dir=mount_config.project_dir)
                 exit_code = execute_local(tool, args, mount_config)
             else:
-                from ax.docker_manager import DockerManager
                 from docker.errors import DockerException
-                
+
+                from ax.docker_manager import DockerManager
+
                 try:
                     docker_mgr = DockerManager()
                 except DockerException as e:
                     print_error(str(e))
                     print("Ensure Docker daemon is running", file=sys.stderr)
                     sys.exit(1)
-                
-                container_name = docker_mgr.generate_container_name(tool_name, mount_config.project_dir)
+
+                container_name = docker_mgr.generate_container_name(
+                    tool_name, mount_config.project_dir
+                )
                 display_header(
                     tool_name,
                     is_local=False,
@@ -116,9 +119,8 @@ def main(ctx: click.Context) -> None:
 def build() -> None:
     """Build the sandbox Docker image."""
     from docker.errors import DockerException
-    
+
     from ax.docker_manager import DockerManager
-    from ax.output import print_info, print_success
 
     print_info(f"Building {IMAGE_NAME} image...")
     try:
@@ -134,18 +136,18 @@ def build() -> None:
 def list_sessions() -> None:
     """List running ax sessions."""
     from docker.errors import DockerException
-    
+
     from ax.docker_manager import DockerManager
     from ax.output import console, highlight
 
     try:
         docker_mgr = DockerManager()
         containers = docker_mgr.list_containers(CONTAINER_PREFIX)
-        
+
         if not containers:
             print("No active sessions")
             return
-        
+
         for c in containers:
             name = highlight(c.name, "bright_blue")
             status_color = "green" if c.status == "running" else "yellow"
@@ -161,9 +163,8 @@ def list_sessions() -> None:
 def stop(session: str) -> None:
     """Stop a running ax session."""
     from docker.errors import DockerException, NotFound
-    
+
     from ax.docker_manager import DockerManager
-    from ax.output import print_success
 
     try:
         docker_mgr = DockerManager()
@@ -181,7 +182,7 @@ def stop(session: str) -> None:
 def shell() -> None:
     """Open a shell in the sandbox container."""
     from docker.errors import DockerException
-    
+
     from ax.docker_manager import DockerManager
     from ax.paths import get_mount_config
 
@@ -191,20 +192,29 @@ def shell() -> None:
         container_name = f"{CONTAINER_PREFIX}shell-{mount_config.project_dir.name}"
 
         if docker_mgr.check_container_exists(container_name):
-            print_error(f"Shell container [bright_blue]{container_name}[/bright_blue] already exists")
+            print_error(
+                f"Shell container [bright_blue]{container_name}[/bright_blue] already exists"
+            )
             print(f"Stop it with: ax stop {container_name}", file=sys.stderr)
             sys.exit(1)
 
         cmd = [
-            "docker", "run",
-            "--rm", "-it",
-            "--name", container_name,
-            "-v", f"{mount_config.project_dir}:/workspace",
-            "-v", f"{mount_config.cli_tools_dir}:{mount_config.cli_tools_dir}",
-            "-v", f"{mount_config.plans_dir}:{mount_config.plans_dir}",
-            "-w", "/workspace",
+            "docker",
+            "run",
+            "--rm",
+            "-it",
+            "--name",
+            container_name,
+            "-v",
+            f"{mount_config.project_dir}:/workspace",
+            "-v",
+            f"{mount_config.cli_tools_dir}:{mount_config.cli_tools_dir}",
+            "-v",
+            f"{mount_config.plans_dir}:{mount_config.plans_dir}",
+            "-w",
+            "/workspace",
             IMAGE_NAME,
-            "bash"
+            "bash",
         ]
 
         exit_code = docker_mgr.run_container(cmd)

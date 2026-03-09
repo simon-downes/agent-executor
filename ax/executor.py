@@ -36,7 +36,9 @@ def execute_local(tool: Tool, args: list[str], mount_config: MountConfig) -> int
         return 130
 
 
-def execute_sandbox(tool: Tool, args: list[str], mount_config: MountConfig, image: str = IMAGE_NAME) -> int:
+def execute_sandbox(
+    tool: Tool, args: list[str], mount_config: MountConfig, image: str = IMAGE_NAME
+) -> int:
     """
     Execute tool in Docker sandbox.
 
@@ -51,9 +53,7 @@ def execute_sandbox(tool: Tool, args: list[str], mount_config: MountConfig, imag
     """
     docker_mgr = DockerManager()
 
-    container_name = docker_mgr.generate_container_name(
-        tool.name, mount_config.project_dir
-    )
+    container_name = docker_mgr.generate_container_name(tool.name, mount_config.project_dir)
 
     # Check if container already exists
     if docker_mgr.check_container_exists(container_name):
@@ -69,32 +69,35 @@ def execute_sandbox(tool: Tool, args: list[str], mount_config: MountConfig, imag
 
 
 def build_docker_run_cmd(
-    container_name: str,
-    mount_config: MountConfig,
-    image: str,
-    tool: Tool,
-    args: list[str]
+    container_name: str, mount_config: MountConfig, image: str, tool: Tool, args: list[str]
 ) -> list[str]:
     """Build docker run command with standard mounts."""
     cmd = [
-        "docker", "run",
+        "docker",
+        "run",
         "--rm",
-        "--name", container_name,
-        "-e", f"TERM={os.environ.get('TERM', 'xterm-256color')}",
-        "-v", f"{mount_config.project_dir}:/workspace",
-        "-v", f"{mount_config.cli_tools_dir}:{mount_config.cli_tools_dir}",
-        "-v", f"{mount_config.plans_dir}:{mount_config.plans_dir}",
-        "-w", "/workspace",
+        "--name",
+        container_name,
+        "-e",
+        f"TERM={os.environ.get('TERM', 'xterm-256color')}",
+        "-v",
+        f"{mount_config.project_dir}:/workspace",
+        "-v",
+        f"{mount_config.cli_tools_dir}:{mount_config.cli_tools_dir}",
+        "-v",
+        f"{mount_config.plans_dir}:{mount_config.plans_dir}",
+        "-w",
+        "/workspace",
     ]
-    
+
     # Add -it only if stdin is a TTY
     if sys.stdin.isatty():
         cmd.insert(3, "-it")
-    
+
     # Add tool config directories
     for config_dir in mount_config.tool_config_dirs:
         cmd.extend(["-v", f"{config_dir}:{config_dir}"])
-    
+
     # Add image and command
     cmd.append(image)
     cmd.append(tool.command)
