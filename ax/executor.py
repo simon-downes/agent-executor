@@ -1,20 +1,24 @@
 """Execution logic for running tools."""
 
+import os
 import subprocess
 import sys
 
+from ax.constants import IMAGE_NAME
 from ax.docker_manager import DockerManager
-from ax.paths import get_mount_config
+from ax.output import print_error
+from ax.paths import MountConfig
 from ax.tools import Tool
 
 
-def execute_local(tool: Tool, args: list[str]) -> int:
+def execute_local(tool: Tool, args: list[str], mount_config: MountConfig) -> int:
     """
     Execute tool locally via subprocess.
 
     Args:
         tool: Tool to execute
         args: Arguments to pass to tool
+        mount_config: Mount configuration (unused for local execution)
 
     Returns:
         Exit code from tool process
@@ -22,7 +26,7 @@ def execute_local(tool: Tool, args: list[str]) -> int:
     cmd = [tool.command] + (tool.default_args or []) + args
 
     try:
-        result = subprocess.run(cmd)
+        result = subprocess.run(cmd, check=False)
         return result.returncode
     except FileNotFoundError:
         print(f"Error: Tool '{tool.command}' not found", file=sys.stderr)
@@ -32,23 +36,19 @@ def execute_local(tool: Tool, args: list[str]) -> int:
         return 130
 
 
-def execute_sandbox(tool: Tool, args: list[str], image: str = "ax-sandbox") -> int:
+def execute_sandbox(tool: Tool, args: list[str], mount_config: MountConfig, image: str = IMAGE_NAME) -> int:
     """
     Execute tool in Docker sandbox.
 
     Args:
         tool: Tool to execute
         args: Arguments to pass to tool
+        mount_config: Mount configuration
         image: Docker image name
 
     Returns:
         Exit code from container
     """
-    import subprocess
-    
-    from ax.output import print_error
-    
-    mount_config = get_mount_config(tool.config_dirs)
     docker_mgr = DockerManager()
 
     container_name = docker_mgr.generate_container_name(
@@ -64,12 +64,23 @@ def execute_sandbox(tool: Tool, args: list[str], image: str = "ax-sandbox") -> i
         )
         return 1
 
-    # Build docker run command
+    cmd = build_docker_run_cmd(container_name, mount_config, image, tool, args)
+    return docker_mgr.run_container(cmd)
+
+
+def build_docker_run_cmd(
+    container_name: str,
+    mount_config: MountConfig,
+    image: str,
+    tool: Tool,
+    args: list[str]
+) -> list[str]:
+    """Build docker run command with standard mounts."""
     cmd = [
         "docker", "run",
         "--rm",
         "--name", container_name,
-        "-e", f"TERM={subprocess.os.environ.get('TERM', 'xterm-256color')}",
+        "-e", f"TERM={os.environ.get('TERM', 'xterm-256color')}",
         "-v", f"{mount_config.project_dir}:/workspace",
         "-v", f"{mount_config.cli_tools_dir}:{mount_config.cli_tools_dir}",
         "-v", f"{mount_config.plans_dir}:{mount_config.plans_dir}",
@@ -91,11 +102,4 @@ def execute_sandbox(tool: Tool, args: list[str], image: str = "ax-sandbox") -> i
         cmd.extend(tool.default_args)
     cmd.extend(args)
 
-    try:
-        result = subprocess.run(cmd, check=False)
-        return result.returncode
-    except FileNotFoundError:
-        print_error("docker command not found")
-        return 1
-    except KeyboardInterrupt:
-        return 130
+    return cmd

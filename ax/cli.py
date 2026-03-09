@@ -4,8 +4,9 @@ import sys
 
 import click
 
+from ax.constants import CONTAINER_PREFIX, IMAGE_NAME
 from ax.executor import execute_local, execute_sandbox
-from ax.output import display_header, print_error
+from ax.output import display_header, print_error, print_info, print_success
 from ax.paths import get_mount_config
 from ax.tools import DEFAULT_TOOL, TOOLS
 
@@ -62,10 +63,18 @@ def create_tool_command(tool_name: str) -> click.Command:
             
             if local:
                 display_header(tool_name, is_local=True, project_dir=mount_config.project_dir)
-                exit_code = execute_local(tool, args)
+                exit_code = execute_local(tool, args, mount_config)
             else:
                 from ax.docker_manager import DockerManager
-                docker_mgr = DockerManager()
+                from docker.errors import DockerException
+                
+                try:
+                    docker_mgr = DockerManager()
+                except DockerException as e:
+                    print_error(str(e))
+                    print("Ensure Docker daemon is running", file=sys.stderr)
+                    sys.exit(1)
+                
                 container_name = docker_mgr.generate_container_name(tool_name, mount_config.project_dir)
                 display_header(
                     tool_name,
@@ -73,7 +82,7 @@ def create_tool_command(tool_name: str) -> click.Command:
                     project_dir=mount_config.project_dir,
                     container_name=container_name,
                 )
-                exit_code = execute_sandbox(tool, args)
+                exit_code = execute_sandbox(tool, args, mount_config)
         except Exception as e:
             print_error(str(e))
             sys.exit(1)
@@ -94,39 +103,56 @@ def main(ctx: click.Context) -> None:
     if ctx.invoked_subcommand is None:
         # No subcommand provided, run default tool
         tool = TOOLS[DEFAULT_TOOL]
-        exit_code = execute_sandbox(tool, [])
+        try:
+            mount_config = get_mount_config(tool.config_dirs)
+            exit_code = execute_sandbox(tool, [], mount_config)
+        except Exception as e:
+            print_error(str(e))
+            sys.exit(1)
         sys.exit(exit_code)
 
 
 @click.command()
 def build() -> None:
     """Build the sandbox Docker image."""
-    import subprocess
-    from ax.output import print_info
+    from docker.errors import DockerException
+    
+    from ax.docker_manager import DockerManager
+    from ax.output import print_info, print_success
 
-    print_info("Building ax-sandbox image...")
+    print_info(f"Building {IMAGE_NAME} image...")
     try:
-        result = subprocess.run(
-            ["docker", "build", "-t", "ax-sandbox", "."],
-            check=False,
-        )
-        sys.exit(result.returncode)
-    except FileNotFoundError:
-        print_error("docker command not found")
+        docker_mgr = DockerManager()
+        docker_mgr.build_image(IMAGE_NAME)
+        print_success(f"Built {IMAGE_NAME}")
+    except DockerException as e:
+        print_error(f"Docker error: {e}")
         sys.exit(1)
-    except KeyboardInterrupt:
-        sys.exit(130)
 
 
 @click.command()
 def list_sessions() -> None:
     """List running ax sessions."""
-    import subprocess
+    from docker.errors import DockerException
+    
+    from ax.docker_manager import DockerManager
+    from ax.output import console, highlight
 
     try:
-        subprocess.run(["docker", "ps", "--filter", "name=ax-*"], check=False)
-    except FileNotFoundError:
-        print_error("docker command not found")
+        docker_mgr = DockerManager()
+        containers = docker_mgr.list_containers(CONTAINER_PREFIX)
+        
+        if not containers:
+            print("No active sessions")
+            return
+        
+        for c in containers:
+            name = highlight(c.name, "bright_blue")
+            status_color = "green" if c.status == "running" else "yellow"
+            status = f"[{status_color}]{c.status}[/{status_color}]"
+            console.print(f"{name}  {status}  {c.image}")
+    except DockerException as e:
+        print_error(f"Docker error: {e}")
         sys.exit(1)
 
 
@@ -134,60 +160,58 @@ def list_sessions() -> None:
 @click.argument("session")
 def stop(session: str) -> None:
     """Stop a running ax session."""
-    import subprocess
+    from docker.errors import DockerException, NotFound
+    
+    from ax.docker_manager import DockerManager
+    from ax.output import print_success
 
     try:
-        result = subprocess.run(["docker", "stop", session], check=False)
-        sys.exit(result.returncode)
-    except FileNotFoundError:
-        print_error("docker command not found")
+        docker_mgr = DockerManager()
+        docker_mgr.stop_container(session)
+        print_success(f"Stopped {session}")
+    except NotFound:
+        print_error(f"Container {session} not found")
+        sys.exit(1)
+    except DockerException as e:
+        print_error(f"Docker error: {e}")
         sys.exit(1)
 
 
 @click.command()
 def shell() -> None:
     """Open a shell in the sandbox container."""
-    import subprocess
+    from docker.errors import DockerException
+    
+    from ax.docker_manager import DockerManager
     from ax.paths import get_mount_config
-    from ax.output import highlight
 
     try:
+        docker_mgr = DockerManager()
         mount_config = get_mount_config([])
-        container_name = f"ax-shell-{mount_config.project_dir.name}"
+        container_name = f"{CONTAINER_PREFIX}shell-{mount_config.project_dir.name}"
 
-        # Check if container already exists (exact name match)
-        check_result = subprocess.run(
-            ["docker", "ps", "-a", "-q", "-f", f"name=^{container_name}$"],
-            capture_output=True,
-            text=True,
-            check=False
-        )
-        if check_result.stdout.strip():
+        if docker_mgr.check_container_exists(container_name):
             print_error(f"Shell container [bright_blue]{container_name}[/bright_blue] already exists")
             print(f"Stop it with: ax stop {container_name}", file=sys.stderr)
             sys.exit(1)
 
-        # Build docker run command
         cmd = [
             "docker", "run",
-            "--rm",
-            "-it",
+            "--rm", "-it",
             "--name", container_name,
             "-v", f"{mount_config.project_dir}:/workspace",
             "-v", f"{mount_config.cli_tools_dir}:{mount_config.cli_tools_dir}",
             "-v", f"{mount_config.plans_dir}:{mount_config.plans_dir}",
             "-w", "/workspace",
-            "ax-sandbox",
+            IMAGE_NAME,
             "bash"
         ]
 
-        result = subprocess.run(cmd, check=False)
-        sys.exit(result.returncode)
-    except FileNotFoundError:
-        print_error("docker command not found")
+        exit_code = docker_mgr.run_container(cmd)
+        sys.exit(exit_code)
+    except DockerException as e:
+        print_error(f"Docker error: {e}")
         sys.exit(1)
-    except KeyboardInterrupt:
-        sys.exit(130)
     except Exception as e:
         print_error(str(e))
         sys.exit(1)
