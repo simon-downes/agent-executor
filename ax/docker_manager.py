@@ -97,7 +97,6 @@ class DockerManager:
                 tty=True,
                 detach=False,
                 remove=True,
-                auto_remove=True,
             )
             return 0
         except KeyboardInterrupt:
