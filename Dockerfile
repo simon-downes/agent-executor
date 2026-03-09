@@ -23,37 +23,19 @@ RUN uv python install
 # Install kiro-cli
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
-        KIRO_ARCH="x64"; \
-    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
-        KIRO_ARCH="arm64"; \
+        URL="https://desktop-release.q.us-east-1.amazonaws.com/latest/kirocli-x86_64-linux.zip"; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        URL="https://desktop-release.q.us-east-1.amazonaws.com/latest/kirocli-aarch64-linux.zip"; \
     else \
         echo "Unsupported architecture: $ARCH" && exit 1; \
     fi && \
-    LIBC=$(ldd --version 2>&1 | grep -q musl && echo "musl" || echo "standard") && \
-    if [ "$LIBC" = "musl" ]; then \
-        KIRO_FILE="kiro-cli-linux-${KIRO_ARCH}-musl.zip"; \
-    else \
-        KIRO_FILE="kiro-cli-linux-${KIRO_ARCH}.zip"; \
-    fi && \
-    curl -L "https://desktop-release.q.us-east-1.amazonaws.com/latest/${KIRO_FILE}" -o /tmp/kiro.zip && \
-    unzip /tmp/kiro.zip -d /usr/local/bin && \
-    chmod +x /usr/local/bin/kiro-cli && \
-    rm /tmp/kiro.zip
+    curl --proto '=https' --tlsv1.2 -sSf "$URL" -o kirocli.zip && \
+    unzip kirocli.zip && \
+    ./kirocli/install.sh --force --no-confirm && \
+    rm -rf kirocli.zip kirocli
 
 # Install toad
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then \
-        TOAD_ARCH="x86_64"; \
-    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
-        TOAD_ARCH="aarch64"; \
-    else \
-        echo "Unsupported architecture: $ARCH" && exit 1; \
-    fi && \
-    TOAD_VERSION=$(curl -s https://api.github.com/repos/batrachianai/toad/releases/latest | grep '"tag_name"' | cut -d'"' -f4) && \
-    curl -L "https://github.com/batrachianai/toad/releases/download/${TOAD_VERSION}/toad-${TOAD_VERSION}-${TOAD_ARCH}-unknown-linux-gnu.tar.gz" -o /tmp/toad.tar.gz && \
-    tar -xzf /tmp/toad.tar.gz -C /usr/local/bin && \
-    chmod +x /usr/local/bin/toad && \
-    rm /tmp/toad.tar.gz
+RUN uv tool install batrachian-toad
 
 # Install jq
 RUN ARCH=$(uname -m) && \
@@ -126,16 +108,15 @@ RUN ARCH=$(uname -m) && \
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
         SCALR_ARCH="amd64"; \
-    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
+    elif [ "$ARCH" = "aarch64" ]; then \
         SCALR_ARCH="arm64"; \
-    else \
-        echo "Unsupported architecture: $ARCH" && exit 1; \
     fi && \
-    SCALR_VERSION=$(curl -s https://api.github.com/repos/Scalr/scalr-cli/releases/latest | grep '"tag_name"' | cut -d'"' -f4 | sed 's/v//') && \
-    curl -L "https://github.com/Scalr/scalr-cli/releases/download/v${SCALR_VERSION}/scalr-cli_${SCALR_VERSION}_linux_${SCALR_ARCH}.tar.gz" -o /tmp/scalr.tar.gz && \
-    tar -xzf /tmp/scalr.tar.gz -C /usr/local/bin && \
+    SCALR_VERSION=$(curl -fsSL https://api.github.com/repos/Scalr/scalr-cli/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")') && \
+    curl -fsSL "https://github.com/Scalr/scalr-cli/releases/download/${SCALR_VERSION}/scalr-cli_${SCALR_VERSION#v}_linux_${SCALR_ARCH}.zip" -o scalr.zip && \
+    unzip scalr.zip -d /tmp/scalr && \
+    mv /tmp/scalr/scalr /usr/local/bin/scalr && \
     chmod +x /usr/local/bin/scalr && \
-    rm /tmp/scalr.tar.gz
+    rm -rf scalr.zip /tmp/scalr
 
 WORKDIR /workspace
 
