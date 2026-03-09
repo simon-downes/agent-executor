@@ -1,5 +1,10 @@
 FROM debian:bookworm-slim
 
+# Build args for user creation
+ARG USERNAME
+ARG USER_UID
+ARG USER_GID
+
 # Install system packages
 RUN apt-get update && apt-get install -y \
     git \
@@ -118,6 +123,14 @@ RUN ARCH=$(uname -m) && \
     chmod +x /usr/local/bin/scalr && \
     rm -rf scalr.zip /tmp/scalr
 
-WORKDIR /workspace
+# Create user with matching UID/GID from host
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
+    && mkdir -p /home/$USERNAME/dev \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME
+
+# Switch to user
+USER $USERNAME
+WORKDIR /home/$USERNAME
 
 CMD ["/bin/bash"]

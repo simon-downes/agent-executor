@@ -63,9 +63,24 @@ class DockerManager:
             return False
 
     def build_image(self, image_name: str, context_path: Path = Path(".")) -> None:
-        """Build Docker image via subprocess, streaming output."""
+        """Build Docker image with host user baked in."""
+        from ax.constants import HOST_GID, HOST_UID, HOST_USERNAME
+
         result = subprocess.run(
-            ["docker", "build", "-t", image_name, str(context_path)], check=False
+            [
+                "docker",
+                "build",
+                "--build-arg",
+                f"USERNAME={HOST_USERNAME}",
+                "--build-arg",
+                f"USER_UID={HOST_UID}",
+                "--build-arg",
+                f"USER_GID={HOST_GID}",
+                "-t",
+                image_name,
+                str(context_path),
+            ],
+            check=False,
         )
         if result.returncode != 0:
             raise DockerException(f"Build failed with exit code {result.returncode}")

@@ -113,11 +113,13 @@ When running in sandbox mode, `ax` automatically mounts:
 
 | Host Path | Container Path | Purpose |
 |-----------|---------------|---------|
-| `~/dev/myproject` | `/workspace` | Your project directory (working directory) |
+| `~/dev/myproject` | `~/dev/myproject` | Your project directory (working directory) |
 | `~/.kiro` | `~/.kiro` | Kiro configuration and skills |
 | `~/.toad` | `~/.toad` | Toad configuration |
 | `~/cli-tools` | `~/cli-tools` | Shared CLI tools and scripts |
 | `~/plans` | `~/plans` | Project plans and documentation |
+
+The container runs as your host user (username and UID/GID are baked into the image at build time), ensuring file permissions match between host and container.
 
 Tool-specific config directories are only mounted when running that tool.
 

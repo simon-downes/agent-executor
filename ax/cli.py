@@ -183,6 +183,7 @@ def shell() -> None:
     """Open a shell in the sandbox container."""
     from docker.errors import DockerException
 
+    from ax.constants import HOST_USERNAME
     from ax.docker_manager import DockerManager
     from ax.paths import get_mount_config
 
@@ -198,6 +199,11 @@ def shell() -> None:
             print(f"Stop it with: ax stop {container_name}", file=sys.stderr)
             sys.exit(1)
 
+        # Mount project to ~/dev/<project> in container
+        project_name = mount_config.project_dir.name
+        container_project_path = f"/home/{HOST_USERNAME}/dev/{project_name}"
+        container_home = f"/home/{HOST_USERNAME}"
+
         cmd = [
             "docker",
             "run",
@@ -206,13 +212,13 @@ def shell() -> None:
             "--name",
             container_name,
             "-v",
-            f"{mount_config.project_dir}:/workspace",
+            f"{mount_config.project_dir}:{container_project_path}",
             "-v",
-            f"{mount_config.cli_tools_dir}:{mount_config.cli_tools_dir}",
+            f"{mount_config.cli_tools_dir}:{container_home}/cli-tools",
             "-v",
-            f"{mount_config.plans_dir}:{mount_config.plans_dir}",
+            f"{mount_config.plans_dir}:{container_home}/plans",
             "-w",
-            "/workspace",
+            container_project_path,
             IMAGE_NAME,
             "bash",
         ]
