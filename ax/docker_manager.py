@@ -1,13 +1,9 @@
 """Docker container operations."""
 
-import sys
 from pathlib import Path
 
 import docker
 from docker.errors import DockerException, NotFound
-
-from ax.output import highlight, print_error
-from ax.paths import MountConfig
 
 
 class DockerManager:
@@ -49,58 +45,3 @@ class DockerManager:
             return True
         except NotFound:
             return False
-
-    def run_in_container(
-        self,
-        image: str,
-        command: list[str],
-        container_name: str,
-        mounts: MountConfig,
-    ) -> int:
-        """
-        Run command in Docker container.
-
-        Args:
-            image: Docker image name
-            command: Command to execute
-            container_name: Name for the container
-            mounts: Mount configuration
-
-        Returns:
-            Exit code from container
-        """
-        if self.check_container_exists(container_name):
-            print_error(f"Container {highlight(container_name)} already exists")
-            print(
-                f"Another session may be running. Stop it with: ax stop {container_name}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
-        volumes = {
-            str(mounts.project_dir): {"bind": "/workspace", "mode": "rw"},
-            str(mounts.cli_tools_dir): {"bind": str(mounts.cli_tools_dir), "mode": "rw"},
-            str(mounts.plans_dir): {"bind": str(mounts.plans_dir), "mode": "rw"},
-        }
-
-        for config_dir in mounts.tool_config_dirs:
-            volumes[str(config_dir)] = {"bind": str(config_dir), "mode": "rw"}
-
-        try:
-            container = self.client.containers.run(
-                image,
-                command,
-                name=container_name,
-                volumes=volumes,
-                working_dir="/workspace",
-                stdin_open=True,
-                tty=True,
-                detach=False,
-                remove=True,
-            )
-            return 0
-        except KeyboardInterrupt:
-            return 130
-        except DockerException as e:
-            print_error(f"Running container: {e}")
-            return 1
