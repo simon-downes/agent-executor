@@ -82,26 +82,83 @@ def main(ctx: click.Context) -> None:
 @click.command()
 def build() -> None:
     """Build the sandbox Docker image."""
-    click.echo("Build command not yet implemented")
+    import subprocess
+
+    click.echo("Building ax-sandbox image...")
+    try:
+        result = subprocess.run(
+            ["docker", "build", "-t", "ax-sandbox", "."],
+            check=False,
+        )
+        sys.exit(result.returncode)
+    except FileNotFoundError:
+        click.echo("Error: docker command not found", err=True)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        sys.exit(130)
 
 
 @click.command()
 def list_sessions() -> None:
     """List running ax sessions."""
-    click.echo("List command not yet implemented")
+    import subprocess
+
+    try:
+        subprocess.run(["docker", "ps", "--filter", "name=ax-*"], check=False)
+    except FileNotFoundError:
+        click.echo("Error: docker command not found", err=True)
+        sys.exit(1)
 
 
 @click.command()
 @click.argument("session")
 def stop(session: str) -> None:
     """Stop a running ax session."""
-    click.echo(f"Stop command not yet implemented: {session}")
+    import subprocess
+
+    try:
+        result = subprocess.run(["docker", "stop", session], check=False)
+        sys.exit(result.returncode)
+    except FileNotFoundError:
+        click.echo("Error: docker command not found", err=True)
+        sys.exit(1)
 
 
 @click.command()
 def shell() -> None:
     """Open a shell in the sandbox container."""
-    click.echo("Shell command not yet implemented")
+    from ax.docker_manager import DockerManager
+    from ax.paths import get_mount_config
+
+    mount_config = get_mount_config([])
+    docker_mgr = DockerManager()
+
+    container_name = f"ax-shell-{mount_config.project_dir.name}"
+
+    volumes = {
+        str(mount_config.project_dir): {"bind": "/workspace", "mode": "rw"},
+        str(mount_config.cli_tools_dir): {"bind": str(mount_config.cli_tools_dir), "mode": "rw"},
+        str(mount_config.plans_dir): {"bind": str(mount_config.plans_dir), "mode": "rw"},
+    }
+
+    try:
+        docker_mgr.client.containers.run(
+            "ax-sandbox",
+            "bash",
+            name=container_name,
+            volumes=volumes,
+            working_dir="/workspace",
+            stdin_open=True,
+            tty=True,
+            detach=False,
+            remove=True,
+            auto_remove=True,
+        )
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
