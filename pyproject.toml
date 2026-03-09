@@ -5,6 +5,7 @@ description = "Unified execution hub for AI workflow tools with Docker sandbox s
 requires-python = ">=3.11"
 dependencies = [
     "click>=8.3.1",
+    "docker>=7.1.0",
 ]
 
 [project.scripts]

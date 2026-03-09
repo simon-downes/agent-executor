@@ -4,7 +4,7 @@ import sys
 
 import click
 
-from ax.executor import execute_local
+from ax.executor import execute_local, execute_sandbox
 from ax.tools import DEFAULT_TOOL, TOOLS
 
 
@@ -56,9 +56,10 @@ def create_tool_command(tool_name: str) -> click.Command:
 
         if local:
             exit_code = execute_local(tool, args)
-            sys.exit(exit_code)
         else:
-            click.echo(f"Would execute {tool_name} in sandbox with args: {args}")
+            exit_code = execute_sandbox(tool, args)
+
+        sys.exit(exit_code)
 
     return tool_cmd
 
@@ -73,7 +74,9 @@ def main(ctx: click.Context) -> None:
     """
     if ctx.invoked_subcommand is None:
         # No subcommand provided, run default tool
-        click.echo(f"Would execute {DEFAULT_TOOL} in sandbox with args: []")
+        tool = TOOLS[DEFAULT_TOOL]
+        exit_code = execute_sandbox(tool, [])
+        sys.exit(exit_code)
 
 
 @click.command()
