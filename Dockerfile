@@ -18,12 +18,14 @@ RUN apt-get update && apt-get install -y \
     nano \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
+# Install uv to system location
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh
 
-# Install Python using uv
-RUN uv python install
+# Install Python using uv to system location
+RUN UV_PYTHON_INSTALL_DIR=/usr/local uv python install && \
+    PYTHON_PATH=$(find /usr/local -name "cpython-*" -type d | head -1) && \
+    ln -s "$PYTHON_PATH/bin/python3" /usr/local/bin/python3 && \
+    ln -s /usr/local/bin/python3 /usr/local/bin/python
 
 # Install jq
 RUN curl -L "https://github.com/jqlang/jq/releases/latest/download/jq-linux-${TARGETARCH}" \
@@ -90,13 +92,8 @@ RUN case ${TARGETARCH} in \
         -o kirocli.zip && \
     unzip kirocli.zip && \
     ./kirocli/install.sh --force --no-confirm && \
-    rm -rf kirocli.zip kirocli
-
-# Install toad (frequent updates)
-RUN uv tool install batrachian-toad
-
-# Install agent-kit tools (frequent updates)
-RUN uv tool install git+https://github.com/simon-downes/agent-kit.git
+    rm -rf kirocli.zip kirocli && \
+    mv /root/.local/bin/kiro-cli /usr/local/bin/kiro-cli
 
 # Create user with matching UID from host (group uses username)
 RUN groupadd $USERNAME \
@@ -107,5 +104,14 @@ RUN groupadd $USERNAME \
 # Switch to user
 USER $USERNAME
 WORKDIR /home/$USERNAME
+
+# Install toad as user (frequent updates)
+RUN uv tool install batrachian-toad
+
+# Install agent-kit tools as user (frequent updates)
+RUN uv tool install git+https://github.com/simon-downes/agent-kit.git
+
+# Ensure user's tool bin is in PATH
+ENV PATH="/home/$USERNAME/.local/bin:$PATH"
 
 CMD ["/bin/bash"]

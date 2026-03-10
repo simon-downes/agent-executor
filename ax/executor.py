@@ -74,6 +74,7 @@ def build_docker_run_cmd(
 ) -> list[str]:
     """Build docker run command with standard mounts."""
     from ax.constants import HOST_USERNAME
+    from ax.tools import load_env_vars
 
     # Mount project to ~/dev/<project> in container
     project_name = mount_config.project_dir.name
@@ -117,6 +118,10 @@ def build_docker_run_cmd(
     for ssh_file in mount_config.ssh_key_files:
         container_ssh_path = str(ssh_file).replace(str(Path.home()), container_home)
         cmd.extend(["-v", f"{ssh_file}:{container_ssh_path}:ro"])
+
+    # Add tool environment variables from kv store
+    for env_name, env_value in load_env_vars(tool).items():
+        cmd.extend(["-e", f"{env_name}={env_value}"])
 
     # Add image and command
     cmd.append(image)
