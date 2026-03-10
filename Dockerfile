@@ -25,22 +25,6 @@ ENV PATH="/root/.local/bin:$PATH"
 # Install Python using uv
 RUN uv python install
 
-# Install kiro-cli
-RUN case ${TARGETARCH} in \
-        amd64) KIRO_ARCH="x86_64" ;; \
-        arm64) KIRO_ARCH="aarch64" ;; \
-        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
-    esac && \
-    curl --proto '=https' --tlsv1.2 -sSf \
-        "https://desktop-release.q.us-east-1.amazonaws.com/latest/kirocli-${KIRO_ARCH}-linux.zip" \
-        -o kirocli.zip && \
-    unzip kirocli.zip && \
-    ./kirocli/install.sh --force --no-confirm && \
-    rm -rf kirocli.zip kirocli
-
-# Install toad
-RUN uv tool install batrachian-toad
-
 # Install jq
 RUN curl -L "https://github.com/jqlang/jq/releases/latest/download/jq-linux-${TARGETARCH}" \
         -o /usr/local/bin/jq && \
@@ -78,6 +62,14 @@ RUN TOFU_VERSION=$(curl -s https://api.github.com/repos/opentofu/opentofu/releas
     chmod +x /usr/local/bin/tofu && \
     rm /tmp/tofu.zip
 
+# Install terraform-docs
+RUN TF_DOCS_VERSION=$(curl -s https://api.github.com/repos/terraform-docs/terraform-docs/releases/latest | grep '"tag_name"' | cut -d'"' -f4) && \
+    curl -L "https://github.com/terraform-docs/terraform-docs/releases/download/${TF_DOCS_VERSION}/terraform-docs-${TF_DOCS_VERSION}-linux-${TARGETARCH}.tar.gz" \
+        -o /tmp/terraform-docs.tar.gz && \
+    tar -xzf /tmp/terraform-docs.tar.gz -C /usr/local/bin terraform-docs && \
+    chmod +x /usr/local/bin/terraform-docs && \
+    rm /tmp/terraform-docs.tar.gz
+
 # Install Scalr CLI
 RUN SCALR_VERSION=$(curl -fsSL https://api.github.com/repos/Scalr/scalr-cli/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")') && \
     curl -fsSL "https://github.com/Scalr/scalr-cli/releases/download/${SCALR_VERSION}/scalr-cli_${SCALR_VERSION#v}_linux_${TARGETARCH}.zip" \
@@ -86,6 +78,25 @@ RUN SCALR_VERSION=$(curl -fsSL https://api.github.com/repos/Scalr/scalr-cli/rele
     mv /tmp/scalr/scalr /usr/local/bin/scalr && \
     chmod +x /usr/local/bin/scalr && \
     rm -rf scalr.zip /tmp/scalr
+
+# Install kiro-cli (frequent updates)
+RUN case ${TARGETARCH} in \
+        amd64) KIRO_ARCH="x86_64" ;; \
+        arm64) KIRO_ARCH="aarch64" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac && \
+    curl --proto '=https' --tlsv1.2 -sSf \
+        "https://desktop-release.q.us-east-1.amazonaws.com/latest/kirocli-${KIRO_ARCH}-linux.zip" \
+        -o kirocli.zip && \
+    unzip kirocli.zip && \
+    ./kirocli/install.sh --force --no-confirm && \
+    rm -rf kirocli.zip kirocli
+
+# Install toad (frequent updates)
+RUN uv tool install batrachian-toad
+
+# Install agent-kit tools (frequent updates)
+RUN uv tool install git+https://github.com/simon-downes/agent-kit.git
 
 # Create user with matching UID from host (group uses username)
 RUN groupadd $USERNAME \

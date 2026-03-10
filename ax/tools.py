@@ -23,6 +23,7 @@ TOOLS: dict[str, Tool] = {
         name="kiro",
         command="kiro-cli",
         config_dirs=["~/.kiro"],
+        default_args=["chat", "--agent", "principal-engineer-sandbox"],
     ),
 }
 
