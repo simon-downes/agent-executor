@@ -191,7 +191,13 @@ def shell() -> None:
 
     try:
         docker_mgr = DockerManager()
-        mount_config = get_mount_config([])
+        # Mount common config dirs for shell access
+        common_config_dirs = [
+            "~/.kiro",
+            ("~/Library/Application Support/kiro-cli", "~/.local/share/kiro-cli"),
+            "~/.toad",
+        ]
+        mount_config = get_mount_config(common_config_dirs)
         container_name = f"{CONTAINER_PREFIX}shell-{mount_config.project_dir.name}"
 
         if docker_mgr.check_container_exists(container_name):
@@ -220,6 +226,20 @@ def shell() -> None:
             "-v",
             f"{mount_config.plans_dir}:{container_home}/plans",
         ]
+
+        # Add tool config directories
+        for config_entry in mount_config.tool_config_dirs:
+            if isinstance(config_entry, tuple):
+                # Explicit mapping: (host_path, container_path)
+                host_path, container_path = config_entry
+                # Replace ~ in container path with container home
+                container_path = container_path.replace("~", container_home)
+            else:
+                # Auto-map: simple home directory replacement
+                host_path = config_entry
+                container_path = str(host_path).replace(str(Path.home()), container_home)
+            
+            cmd.extend(["-v", f"{host_path}:{container_path}"])
 
         # Add git config files
         for git_file in mount_config.git_config_files:

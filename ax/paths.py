@@ -11,7 +11,7 @@ class MountConfig:
     project_dir: Path
     cli_tools_dir: Path
     plans_dir: Path
-    tool_config_dirs: list[Path]
+    tool_config_dirs: list[Path | tuple[Path, str]]  # Path for auto-map, tuple for explicit (host, container)
     git_config_files: list[Path]
     ssh_key_files: list[Path]
 
@@ -77,7 +77,14 @@ def get_mount_config(tool_config_dirs: list[str]) -> MountConfig:
     cli_tools_dir = home / "cli-tools"
     plans_dir = home / "plans"
 
-    tool_configs = [Path(d).expanduser() for d in tool_config_dirs]
+    # Process tool config dirs - can be str or tuple[str, str]
+    tool_configs = []
+    for d in tool_config_dirs:
+        if isinstance(d, tuple):
+            host_path, container_path = d
+            tool_configs.append((Path(host_path).expanduser(), container_path))
+        else:
+            tool_configs.append(Path(d).expanduser())
 
     # Git config files (only include if they exist)
     git_config_files = []

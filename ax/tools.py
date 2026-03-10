@@ -17,7 +17,7 @@ class Tool:
 
     name: str
     command: str
-    config_dirs: list[str]
+    config_dirs: list[str | tuple[str, str]]  # str for auto-map, tuple for explicit (host, container)
     default_args: list[str] | None = None
     env_vars: dict[str, str] | None = None  # Additional tool-specific env vars
 
@@ -68,7 +68,10 @@ TOOLS: dict[str, Tool] = {
     "kiro": Tool(
         name="kiro",
         command="kiro-cli",
-        config_dirs=["~/.kiro", "~/Library/Application Support/kiro-cli"],
+        config_dirs=[
+            "~/.kiro",
+            ("~/Library/Application Support/kiro-cli", "~/.local/share/kiro-cli"),
+        ],
         default_args=["chat", "--agent", "principal-engineer-sandbox"],
     ),
 }

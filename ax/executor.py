@@ -104,10 +104,18 @@ def build_docker_run_cmd(
         cmd.insert(3, "-it")
 
     # Add tool config directories
-    for config_dir in mount_config.tool_config_dirs:
-        # Mount to same path in container (e.g., ~/.kiro -> /home/user/.kiro)
-        container_config_path = str(config_dir).replace(str(Path.home()), container_home)
-        cmd.extend(["-v", f"{config_dir}:{container_config_path}"])
+    for config_entry in mount_config.tool_config_dirs:
+        if isinstance(config_entry, tuple):
+            # Explicit mapping: (host_path, container_path)
+            host_path, container_path = config_entry
+            # Replace ~ in container path with container home
+            container_path = container_path.replace("~", container_home)
+        else:
+            # Auto-map: simple home directory replacement
+            host_path = config_entry
+            container_path = str(host_path).replace(str(Path.home()), container_home)
+        
+        cmd.extend(["-v", f"{host_path}:{container_path}"])
 
     # Add git config files
     for git_file in mount_config.git_config_files:
