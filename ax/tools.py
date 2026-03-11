@@ -74,6 +74,15 @@ TOOLS: dict[str, Tool] = {
         ],
         default_args=["chat", "--agent", "principal-engineer-sandbox"],
     ),
+    "shell": Tool(
+        name="shell",
+        command="bash",
+        config_dirs=[
+            "~/.kiro",
+            ("~/Library/Application Support/kiro-cli", "~/.local/share/kiro-cli"),
+            "~/.toad",
+        ],
+    ),
 }
 
 DEFAULT_TOOL = "toad"

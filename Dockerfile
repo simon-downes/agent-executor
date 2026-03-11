@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     dnsutils \
     wget \
     nano \
+    sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv to system location
@@ -81,6 +82,16 @@ RUN SCALR_VERSION=$(curl -fsSL https://api.github.com/repos/Scalr/scalr-cli/rele
     chmod +x /usr/local/bin/scalr && \
     rm -rf scalr.zip /tmp/scalr
 
+# Create user with matching UID from host (group uses username)
+RUN groupadd $USERNAME \
+    && useradd --uid $USER_UID --gid $USERNAME -m -s /bin/bash $USERNAME \
+    && mkdir -p /home/$USERNAME/dev \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME
+
+# Switch to user
+USER $USERNAME
+WORKDIR /home/$USERNAME
+
 # Install kiro-cli (frequent updates)
 RUN case ${TARGETARCH} in \
         amd64) KIRO_ARCH="x86_64" ;; \
@@ -92,18 +103,7 @@ RUN case ${TARGETARCH} in \
         -o kirocli.zip && \
     unzip kirocli.zip && \
     ./kirocli/install.sh --force --no-confirm && \
-    rm -rf kirocli.zip kirocli && \
-    mv /root/.local/bin/kiro-cli /usr/local/bin/kiro-cli
-
-# Create user with matching UID from host (group uses username)
-RUN groupadd $USERNAME \
-    && useradd --uid $USER_UID --gid $USERNAME -m -s /bin/bash $USERNAME \
-    && mkdir -p /home/$USERNAME/dev \
-    && chown -R $USERNAME:$USERNAME /home/$USERNAME
-
-# Switch to user
-USER $USERNAME
-WORKDIR /home/$USERNAME
+    rm -rf kirocli.zip kirocli
 
 # Install toad as user (frequent updates)
 RUN uv tool install batrachian-toad

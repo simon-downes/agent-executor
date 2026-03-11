@@ -16,7 +16,7 @@ class ToolCLI(click.MultiCommand):
 
     def list_commands(self, ctx: click.Context) -> list[str]:
         """List all available commands (built-ins + tools)."""
-        builtin = ["build", "list", "stop", "shell"]
+        builtin = ["build", "list", "stop"]
         return builtin + sorted(TOOLS.keys())
 
     def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
@@ -26,7 +26,6 @@ class ToolCLI(click.MultiCommand):
             "build": build,
             "list": list_sessions,
             "stop": stop,
-            "shell": shell,
         }
 
         if cmd_name in builtin_commands:
@@ -175,91 +174,6 @@ def stop(session: str) -> None:
         sys.exit(1)
     except DockerException as e:
         print_error(f"Docker error: {e}")
-        sys.exit(1)
-
-
-@click.command()
-def shell() -> None:
-    """Open a shell in the sandbox container."""
-    from pathlib import Path
-
-    from docker.errors import DockerException
-
-    from ax.constants import HOST_USERNAME
-    from ax.docker_manager import DockerManager
-    from ax.paths import get_mount_config
-
-    try:
-        docker_mgr = DockerManager()
-        # Mount common config dirs for shell access
-        common_config_dirs = [
-            "~/.kiro",
-            ("~/Library/Application Support/kiro-cli", "~/.local/share/kiro-cli"),
-            "~/.toad",
-        ]
-        mount_config = get_mount_config(common_config_dirs)
-        container_name = f"{CONTAINER_PREFIX}shell-{mount_config.project_dir.name}"
-
-        if docker_mgr.check_container_exists(container_name):
-            print_error(
-                f"Shell container [bright_blue]{container_name}[/bright_blue] already exists"
-            )
-            print(f"Stop it with: ax stop {container_name}", file=sys.stderr)
-            sys.exit(1)
-
-        # Mount project to ~/dev/<project> in container
-        project_name = mount_config.project_dir.name
-        container_project_path = f"/home/{HOST_USERNAME}/dev/{project_name}"
-        container_home = f"/home/{HOST_USERNAME}"
-
-        cmd = [
-            "docker",
-            "run",
-            "--rm",
-            "-it",
-            "--name",
-            container_name,
-            "-v",
-            f"{mount_config.project_dir}:{container_project_path}",
-            "-v",
-            f"{mount_config.cli_tools_dir}:{container_home}/cli-tools",
-            "-v",
-            f"{mount_config.plans_dir}:{container_home}/plans",
-        ]
-
-        # Add tool config directories
-        for config_entry in mount_config.tool_config_dirs:
-            if isinstance(config_entry, tuple):
-                # Explicit mapping: (host_path, container_path)
-                host_path, container_path = config_entry
-                # Replace ~ in container path with container home
-                container_path = container_path.replace("~", container_home)
-            else:
-                # Auto-map: simple home directory replacement
-                host_path = config_entry
-                container_path = str(host_path).replace(str(Path.home()), container_home)
-            
-            cmd.extend(["-v", f"{host_path}:{container_path}"])
-
-        # Add git config files
-        for git_file in mount_config.git_config_files:
-            container_git_path = str(git_file).replace(str(Path.home()), container_home)
-            cmd.extend(["-v", f"{git_file}:{container_git_path}:ro"])
-
-        # Add SSH keys
-        for ssh_file in mount_config.ssh_key_files:
-            container_ssh_path = str(ssh_file).replace(str(Path.home()), container_home)
-            cmd.extend(["-v", f"{ssh_file}:{container_ssh_path}:ro"])
-
-        cmd.extend(["-w", container_project_path, IMAGE_NAME, "bash"])
-
-        exit_code = docker_mgr.run_container(cmd)
-        sys.exit(exit_code)
-    except DockerException as e:
-        print_error(f"Docker error: {e}")
-        sys.exit(1)
-    except Exception as e:
-        print_error(str(e))
         sys.exit(1)
 
 
