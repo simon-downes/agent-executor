@@ -89,6 +89,8 @@ def build_docker_run_cmd(
         container_name,
         "-e",
         f"TERM={os.environ.get('TERM', 'xterm-256color')}",
+        "-e",
+        f"COLORTERM={os.environ.get('COLORTERM', 'truecolor')}",
         "-v",
         f"{mount_config.project_dir}:{container_project_path}",
         "-v",
@@ -114,7 +116,7 @@ def build_docker_run_cmd(
             # Auto-map: simple home directory replacement
             host_path = config_entry
             container_path = str(host_path).replace(str(Path.home()), container_home)
-        
+
         cmd.extend(["-v", f"{host_path}:{container_path}"])
 
     # Add git config files
