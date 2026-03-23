@@ -21,6 +21,12 @@ RUN apt-get update && apt-get install -y \
     fd-find \
     tree \
     shellcheck \
+    postgresql-client \
+    mariadb-client \
+    redis-tools \
+    netcat-openbsd \
+    iputils-ping \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # Create fd symlink (Debian packages it as fdfind)
@@ -140,7 +146,9 @@ RUN SCALR_VERSION=$(curl -fsSL https://api.github.com/repos/Scalr/scalr-cli/rele
 RUN groupadd $USERNAME \
     && useradd --uid $USER_UID --gid $USERNAME -m -s /bin/bash $USERNAME \
     && mkdir -p /home/$USERNAME/dev \
-    && chown -R $USERNAME:$USERNAME /home/$USERNAME
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME \
+    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/agent-sudo \
+    && chmod 0440 /etc/sudoers.d/agent-sudo
 
 # Switch to user
 USER $USERNAME
